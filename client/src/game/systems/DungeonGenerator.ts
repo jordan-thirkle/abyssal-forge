@@ -107,8 +107,8 @@ export class DungeonGenerator {
 
     const light = new PointLight(`torchLight_${pos.x}`, pos.add(new Vector3(0, 0.5, 0)), this.scene);
     light.diffuse = new Color3(1, 0.55, 0.1);
-    light.intensity = 1.2;
-    light.range = 8;
+    light.intensity = 2.5;
+    light.range = 14;
 
     // Flicker via simple sine animation
     let t = Math.random() * Math.PI * 2;

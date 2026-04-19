@@ -75,23 +75,21 @@ export abstract class Enemy {
     tex.update();
   }
 
-  takeDamage(amount: number): number {
-    if (this.state === 'DEAD') return 0;
-    const reduction = this.def.defence / (this.def.defence + 100);
-    const finalDmg = Math.round(amount * (1 - reduction));
-    this.health = Math.max(0, this.health - finalDmg);
-
-    const pct = this.health / this.def.maxHealth;
-    const tex = (this.healthBarMesh.material as StandardMaterial).diffuseTexture as DynamicTexture;
-    this.drawHealthBar(tex, pct);
-
-    if (this.health <= 0) this.die();
-    return finalDmg;
-  }
-
   protected die(): void {
     this.state = 'DEAD';
     const pos = this.mesh.position.clone();
+    
+    // AAA Death Animation: Scale down and fade
+    const startScale = this.mesh.scaling.clone();
+    const startTime = performance.now();
+    const animateDeath = () => {
+      const elapsed = performance.now() - startTime;
+      const progress = Math.min(1, elapsed / 600);
+      this.mesh.scaling = startScale.scale(1 - progress);
+      if (progress < 1) requestAnimationFrame(animateDeath);
+    };
+    requestAnimationFrame(animateDeath);
+
     setTimeout(() => {
       this.onDeath?.(pos);
       this.dispose();
@@ -104,7 +102,10 @@ export abstract class Enemy {
     if (dir.length() < 0.1) return;
     dir.normalize();
     this.mesh.position.addInPlace(dir.scale(this.def.speed * deltaS));
-    this.mesh.lookAt(this.mesh.position.add(dir));
+    
+    // Smooth lookAt
+    const targetRotation = Math.atan2(dir.x, dir.z);
+    this.mesh.rotation.y = targetRotation;
   }
 
   protected distanceTo(pos: Vector3): number {
@@ -115,6 +116,11 @@ export abstract class Enemy {
     if (this.state === 'DEAD') return;
     const deltaS = deltaMs / 1000;
     const dist = this.distanceTo(playerPos);
+
+    // AAA Procedural Breathing / Bobbing
+    const time = performance.now() * 0.002;
+    const bob = Math.sin(time + this.id.length) * 0.03;
+    this.mesh.position.y += bob;
 
     switch (this.state) {
       case 'IDLE':
@@ -136,6 +142,35 @@ export abstract class Enemy {
       case 'STUNNED':
         break;
     }
+  }
+
+  // AAA Hit Flash
+  private flashMaterial(): void {
+    const mats = this.mesh.getChildMeshes().map(m => m.material as StandardMaterial);
+    mats.forEach(m => {
+      if (!m) return;
+      const oldColor = m.emissiveColor.clone();
+      m.emissiveColor = Color3.White().scale(0.8);
+      setTimeout(() => {
+        if (m) m.emissiveColor = oldColor;
+      }, 100);
+    });
+  }
+
+  takeDamage(amount: number): number {
+    if (this.state === 'DEAD') return 0;
+    const reduction = this.def.defence / (this.def.defence + 100);
+    const finalDmg = Math.round(amount * (1 - reduction));
+    this.health = Math.max(0, this.health - finalDmg);
+
+    const pct = this.health / this.def.maxHealth;
+    const tex = (this.healthBarMesh.material as StandardMaterial).diffuseTexture as DynamicTexture;
+    this.drawHealthBar(tex, pct);
+
+    this.flashMaterial();
+
+    if (this.health <= 0) this.die();
+    return finalDmg;
   }
 
   protected tryAttack(_playerPos: Vector3): void {

@@ -1,11 +1,13 @@
 /**
- * @description Zustand player store — stats, XP, level, currency, class
+ * @description Zustand player store — stats, XP, level, currency, class (Supabase persistent)
  * @author Abyssal Forge
- * @version 1.0.0
+ * @version 1.1.0
  */
 import { create } from 'zustand';
 import type { BaseStats, PlayerProfile, AnyClass } from '@shared/types/player.types';
 import { XP } from '@shared/constants/balance';
+import { supabase } from '../lib/supabase';
+import { useInventoryStore } from './inventoryStore';
 
 const BASE_WANDERER_STATS: BaseStats = {
   health: 100,
@@ -25,12 +27,13 @@ interface PlayerState {
   isLevelingUp: boolean;
 
   // Actions
-  init: (username: string, fromPortal?: boolean, portalHp?: number) => void;
+  init: (username?: string, fromPortal?: boolean, portalHp?: number) => Promise<void>;
   takeDamage: (amount: number) => void;
   heal: (amount: number) => void;
   gainXP: (amount: number) => void;
   gainDust: (amount: number) => void;
   setLevelingUp: (val: boolean) => void;
+  saveProfile: () => Promise<void>;
 }
 
 function getLevel(xp: number): number {
@@ -46,27 +49,109 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
   stats: { ...BASE_WANDERER_STATS },
   isLevelingUp: false,
 
-  init(username, fromPortal = false, portalHp) {
-    const id = `guest_${Math.random().toString(36).slice(2)}`;
-    const profile: PlayerProfile = {
-      id,
-      username,
-      class: 'wanderer' as AnyClass,
-      level: 1,
-      combatXP: 0,
-      craftXP: 0,
-      dust: 500,
-      shards: 0,
-      arenaRating: 1000,
-      guildId: null,
-      createdAt: new Date().toISOString(),
-      isGuest: true,
-    };
-    const stats = { ...BASE_WANDERER_STATS };
-    if (fromPortal && portalHp !== undefined) {
-      stats.health = Math.round((portalHp / 100) * stats.maxHealth);
+  async init(username = `VoidWalker#${Math.floor(Math.random() * 9000) + 1000}`, fromPortal = false, portalHp) {
+    if (get().profile) return; // already initialized
+
+    try {
+      // 1. Sign in anonymously
+      const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
+      if (authError) throw authError;
+
+      const userId = authData.user?.id;
+      if (!userId) throw new Error("No user ID returned from anonymous auth");
+
+      // 2. Try to fetch existing profile
+      const { data: existingProfile, error: fetchError } = await supabase
+        .from('player_profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      let profile: PlayerProfile;
+
+      if (existingProfile) {
+        // Load existing
+        profile = {
+          id: existingProfile.id,
+          username: existingProfile.username,
+          class: existingProfile.class as AnyClass,
+          level: existingProfile.level,
+          combatXP: existingProfile.combat_xp,
+          craftXP: existingProfile.craft_xp,
+          dust: existingProfile.dust,
+          shards: existingProfile.shards,
+          arenaRating: existingProfile.arena_rating,
+          guildId: existingProfile.guild_id,
+          createdAt: existingProfile.created_at,
+          isGuest: true,
+        };
+      } else {
+        // Create new
+        profile = {
+          id: userId,
+          username,
+          class: 'wanderer',
+          level: 1,
+          combatXP: 0,
+          craftXP: 0,
+          dust: 500,
+          shards: 0,
+          arenaRating: 1000,
+          guildId: null,
+          createdAt: new Date().toISOString(),
+          isGuest: true,
+        };
+
+        const { error: insertError } = await supabase
+          .from('player_profiles')
+          .insert({
+            id: profile.id,
+            username: profile.username,
+            class: profile.class,
+            level: profile.level,
+            combat_xp: profile.combatXP,
+            craft_xp: profile.craftXP,
+            dust: profile.dust,
+            shards: profile.shards,
+            arena_rating: profile.arenaRating,
+          });
+
+        if (insertError) {
+          console.error("Failed to insert profile, continuing with local state", insertError);
+        }
+      }
+
+      // Calculate stats based on level
+      const stats = { ...BASE_WANDERER_STATS };
+      stats.maxHealth += 10 * (profile.level - 1);
+      stats.health = stats.maxHealth;
+      stats.attack += 2 * (profile.level - 1);
+      stats.defence += 1 * (profile.level - 1);
+
+      if (fromPortal && portalHp !== undefined) {
+        stats.health = Math.round((portalHp / 100) * stats.maxHealth);
+      }
+
+      set({ profile, stats });
+      
+      // Initialize inventory from Supabase
+      useInventoryStore.getState().initInventory();
+
+    } catch (e) {
+      console.error("Supabase init failed, falling back to local-only guest session", e);
+      // Fallback local session if Supabase is down/unconfigured
+      const id = `guest_${Math.random().toString(36).slice(2)}`;
+      const profile: PlayerProfile = {
+        id, username, class: 'wanderer', level: 1, combatXP: 0, craftXP: 0,
+        dust: 500, shards: 0, arenaRating: 1000, guildId: null,
+        createdAt: new Date().toISOString(), isGuest: true,
+      };
+      const stats = { ...BASE_WANDERER_STATS };
+      if (fromPortal && portalHp !== undefined) {
+        stats.health = Math.round((portalHp / 100) * stats.maxHealth);
+      }
+      set({ profile, stats });
     }
-    set({ profile, stats });
   },
 
   takeDamage(amount) {
@@ -111,15 +196,39 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
       stats: updatedStats,
       isLevelingUp: didLevelUp,
     });
+    
+    // Save to DB asynchronously
+    get().saveProfile();
   },
 
   gainDust(amount) {
-    set((s) => ({
-      profile: s.profile ? { ...s.profile, dust: s.profile.dust + amount } : null,
-    }));
+    const { profile } = get();
+    if (!profile) return;
+    set({
+      profile: { ...profile, dust: profile.dust + amount }
+    });
+    get().saveProfile();
   },
 
   setLevelingUp(val) {
     set({ isLevelingUp: val });
   },
+
+  async saveProfile() {
+    const { profile } = get();
+    if (!profile || profile.id.startsWith('guest_')) return;
+
+    await supabase
+      .from('player_profiles')
+      .update({
+        level: profile.level,
+        combat_xp: profile.combatXP,
+        craft_xp: profile.craftXP,
+        dust: profile.dust,
+        shards: profile.shards,
+        arena_rating: profile.arenaRating,
+        last_seen_at: new Date().toISOString()
+      })
+      .eq('id', profile.id);
+  }
 }));

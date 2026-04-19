@@ -1,9 +1,3 @@
-/**
- * @description DungeonScene — orchestrates all Phase 1 gameplay:
- *              generates dungeon, spawns player and enemies, ticks all systems.
- * @author Abyssal Forge
- * @version 1.0.0
- */
 import { Vector3 } from '@babylonjs/core';
 import { GameEngine } from '../GameEngine';
 import { DungeonGenerator } from '../systems/DungeonGenerator';
@@ -19,6 +13,8 @@ import { usePlayerStore } from '../../store/playerStore';
 import { LOOT } from '@shared/constants/balance';
 import type { Enemy } from '../entities/Enemy';
 import type { Item } from '@shared/types/item.types';
+import { ColyseusClient } from '../network/ColyseusClient';
+import { AudioSystem } from '../systems/AudioSystem';
 
 interface DungeonSceneOptions {
   tier?: number;
@@ -38,13 +34,15 @@ export class DungeonScene {
   private particles!: AbyssalParticleSystem;
   private portal!: PortalSystem;
   private lastTick = performance.now();
+  private network: ColyseusClient;
 
   constructor(engine: GameEngine, options: DungeonSceneOptions = {}) {
     this.engine = engine;
     this.options = options;
+    this.network = new ColyseusClient();
   }
 
-  build(): void {
+  async build(): Promise<void> {
     const scene = this.engine.createScene();
     const tier = this.options.tier ?? 1;
 
@@ -63,7 +61,19 @@ export class DungeonScene {
     // 3. Player
     this.player = new Player(scene, layout.spawnPoint);
 
+    // 4. Network Setup (Phase 2/3 Authorization Scaffold)
+    const profile = usePlayerStore.getState().profile;
+    if (profile) {
+      try {
+        await this.network.joinDungeon(tier, profile.id);
+        console.log("Connected to dungeon room:", this.network.room?.id);
+      } catch (e) {
+        console.warn("Failed to join multiplayer room, playing in offline mode", e);
+      }
+    }
+
     this.player.onLightAttack = (step) => {
+      AudioSystem.playSwing();
       const multiplier = [1.0, 1.1, 1.3][step] ?? 1.0;
       const stats = usePlayerStore.getState().stats;
       const hits = this.combat.meleeAttack(
@@ -71,21 +81,29 @@ export class DungeonScene {
         stats, this.enemies, multiplier, 2.5, false
       );
       hits.forEach(h => {
+        AudioSystem.playHit();
         this.particles.hitBurst(h.position);
         this.checkEnemyDeath(h.enemyId);
       });
+      
+      // Sync attack to server
+      this.network.sendInput('attack', { type: 'light', step });
     };
 
     this.player.onHeavyAttack = () => {
+      AudioSystem.playSwing();
       const stats = usePlayerStore.getState().stats;
       const hits = this.combat.meleeAttack(
         this.player.position, this.player.mesh.forward,
         stats, this.enemies, 1.8, 3.5, true
       );
       hits.forEach(h => {
+        AudioSystem.playHit();
         this.particles.hitBurst(h.position, undefined, 20);
         this.checkEnemyDeath(h.enemyId);
       });
+      
+      this.network.sendInput('attack', { type: 'heavy' });
     };
 
     // 4. Spawn enemies
@@ -152,6 +170,16 @@ export class DungeonScene {
     if (!profile) return;
 
     this.player.update(delta);
+
+    // Sync position to server periodically or on change
+    if (this.network.room) {
+      this.network.sendInput('move', { 
+        x: this.player.position.x, 
+        y: this.player.position.y, 
+        z: this.player.position.z,
+        ry: this.player.mesh.rotation.y
+      });
+    }
 
     for (const enemy of this.enemies) {
       enemy.update(delta, this.player.position);

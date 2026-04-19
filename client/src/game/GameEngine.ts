@@ -12,15 +12,17 @@ import {
   HemisphericLight,
   Color3,
   Color4,
+  DefaultRenderingPipeline,
 } from '@babylonjs/core';
 import '@babylonjs/loaders';
-
+import { AudioSystem } from './systems/AudioSystem';
 
 export type SceneKey = 'dungeon' | 'arena' | 'hub';
 
 export class GameEngine {
   public engine: Engine;
   public scene!: Scene;
+  public pipeline!: DefaultRenderingPipeline;
   private shakeTimeoutId: number | null = null;
 
   constructor(canvas: HTMLCanvasElement) {
@@ -29,6 +31,9 @@ export class GameEngine {
       stencil: true,
       antialias: true,
     });
+
+    // Initialize AudioSystem (requires user interaction later to resume)
+    AudioSystem.init();
 
     // Prevent context menu on right-click (used for heavy attack)
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -40,16 +45,46 @@ export class GameEngine {
   /** Create a base scene with dark ambient and fog */
   createScene(): Scene {
     this.scene = new Scene(this.engine);
-    this.scene.clearColor = new Color4(0.051, 0.051, 0.059, 1);
+    this.scene.clearColor = new Color4(0.01, 0.01, 0.015, 1);
+    
+    // AAA Fog & Atmosphere
     this.scene.fogMode = Scene.FOGMODE_EXP2;
-    this.scene.fogDensity = 0.035;
-    const bgColor = Color3.FromHexString('#0D0D0F');
+    this.scene.fogDensity = 0.045;
+    const bgColor = Color3.FromHexString('#050508');
     this.scene.fogColor = bgColor;
-    this.scene.ambientColor = bgColor.scale(0.05);
+    this.scene.ambientColor = bgColor.scale(0.1);
 
-    // Minimal ambient light — everything else is local (torches, glows)
+    // Dungeon ambient — dark but cinematic
     const ambient = new HemisphericLight('ambient', new Vector3(0, 1, 0), this.scene);
-    ambient.intensity = 0.05;
+    ambient.intensity = 0.15; // Darker for more contrast
+    ambient.diffuse = new Color3(0.4, 0.3, 0.6);
+    ambient.groundColor = new Color3(0.05, 0.04, 0.1);
+
+    // AAA Post-Processing Pipeline
+    this.pipeline = new DefaultRenderingPipeline(
+      "aaa_pipeline", 
+      true, 
+      this.scene, 
+      [this.scene.activeCamera!]
+    );
+    
+    // Bloom (Magic glow)
+    this.pipeline.bloomEnabled = true;
+    this.pipeline.bloomThreshold = 0.6;
+    this.pipeline.bloomWeight = 0.4;
+    this.pipeline.bloomKernel = 64;
+
+    // Vignette (Cinematic focus)
+    this.pipeline.imageProcessingEnabled = true;
+    this.pipeline.imageProcessing.vignetteEnabled = true;
+    this.pipeline.imageProcessing.vignetteWeight = 3;
+    this.pipeline.imageProcessing.vignetteStretch = 0.5;
+    this.pipeline.imageProcessing.vignetteColor = new Color4(0, 0, 0, 0);
+
+    // Chromatic Aberration (Lens distortion for depth)
+    this.pipeline.chromaticAberrationEnabled = true;
+    this.pipeline.chromaticAberration.aberrationAmount = 2.5;
+    this.pipeline.chromaticAberration.radialIntensity = 0.2;
 
     return this.scene;
   }

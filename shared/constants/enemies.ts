@@ -87,7 +87,73 @@ export const BONE_ARCHER: EnemyDefinition = {
   ],
 };
 
+export const CRYPT_WARDEN: EnemyDefinition = {
+  id: 'crypt_warden',
+  name: 'Crypt Warden',
+  tier: 2,
+  maxHealth: 150,
+  attack: 18,
+  defence: 10,
+  speed: 2.2,
+  aggroRange: 10,
+  attackRange: 2,
+  xpReward: 60,
+  dustReward: [10, 25],
+  glowColor: '#3b82f6',  // blue — elite
+  attacks: [
+    {
+      id: 'warden_cleave',
+      name: 'Cleave',
+      damageMultiplier: 1.5,
+      damageType: 'physical',
+      cooldown: 2500,
+      range: 2.5,
+      animationName: 'attack_cleave',
+      particleEffect: 'hit_physical_heavy',
+    },
+  ],
+};
+
+export const ABYSSAL_BOSS: EnemyDefinition = {
+  id: 'abyssal_boss',
+  name: 'The Abyssal Behemoth',
+  tier: 5,
+  maxHealth: 800,
+  attack: 35,
+  defence: 20,
+  speed: 1.8,
+  aggroRange: 15,
+  attackRange: 3,
+  xpReward: 500,
+  dustReward: [100, 300],
+  glowColor: '#ef4444',  // red — boss
+  attacks: [
+    {
+      id: 'boss_slam',
+      name: 'Ground Slam',
+      damageMultiplier: 2.0,
+      damageType: 'physical',
+      cooldown: 4000,
+      range: 4,
+      animationName: 'attack_slam',
+      particleEffect: 'hit_physical_boss',
+    },
+    {
+      id: 'boss_void',
+      name: 'Void Eruption',
+      damageMultiplier: 1.0,
+      damageType: 'magical',
+      cooldown: 8000,
+      range: 8,
+      animationName: 'attack_cast',
+      particleEffect: 'hit_void',
+    },
+  ],
+};
+
 export const ALL_ENEMIES: Record<string, EnemyDefinition> = {
   hollow_grunt: HOLLOW_GRUNT,
   bone_archer: BONE_ARCHER,
+  crypt_warden: CRYPT_WARDEN,
+  abyssal_boss: ABYSSAL_BOSS,
 };

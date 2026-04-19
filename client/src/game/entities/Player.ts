@@ -7,7 +7,7 @@
 import {
   Scene, MeshBuilder, StandardMaterial, Color3, Vector3,
   ArcRotateCamera, Mesh, KeyboardEventTypes,
-  PointerEventTypes,
+  PointerEventTypes, PointLight,
 } from '@babylonjs/core';
 import { COMBAT } from '@shared/constants/balance';
 import type { BaseStats } from '@shared/types/player.types';
@@ -63,6 +63,13 @@ export class Player {
 
     this.mesh.ellipsoid = new Vector3(0.5, 1, 0.5);
     this.mesh.checkCollisions = true;
+
+    // Player glow light so surroundings are always illuminated
+    const playerLight = new PointLight('playerLight', new Vector3(0, 1.5, 0), scene);
+    playerLight.parent = this.mesh;
+    playerLight.diffuse = new Color3(0.6, 0.3, 1.0);
+    playerLight.intensity = 1.5;
+    playerLight.range = 12;
 
     this.registerInputs();
   }

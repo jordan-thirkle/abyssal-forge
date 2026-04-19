@@ -28,9 +28,6 @@ export default {
         ui:   ['Inter', 'sans-serif'],
         mono: ['JetBrains Mono', 'monospace'],
       },
-      backdropBlur: {
-        glass: '12px',
-      },
     },
   },
   plugins: [],

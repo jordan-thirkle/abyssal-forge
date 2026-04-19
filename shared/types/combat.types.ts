@@ -4,7 +4,7 @@
  * @version 1.0.0
  */
 
-export type DamageType = 'physical' | 'fire' | 'shadow' | 'arcane' | 'void';
+export type DamageType = 'physical' | 'magical' | 'void' | 'fire' | 'frost' | 'true';
 
 export type StatusEffect =
   | 'burning'     // fire DoT
