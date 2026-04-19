@@ -26,7 +26,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   async initInventory() {
     const profile = usePlayerStore.getState().profile;
-    if (!profile || profile.id.startsWith('guest_')) return;
+    if (!profile || profile.id.startsWith('guest_') || !supabase) return;
 
     try {
       // Fetch all items owned by player
@@ -102,7 +102,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     const profile = usePlayerStore.getState().profile;
     set((s) => ({ items: [...s.items, item] }));
 
-    if (profile && !profile.id.startsWith('guest_')) {
+    if (profile && !profile.id.startsWith('guest_') && supabase) {
       await supabase.from('inventory_items').insert({
         id: item.id,
         owner_id: profile.id,
@@ -125,7 +125,9 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
 
   async removeItem(itemId) {
     set((s) => ({ items: s.items.filter((i) => i.id !== itemId) }));
-    await supabase.from('inventory_items').delete().eq('id', itemId);
+    if (supabase) {
+      await supabase.from('inventory_items').delete().eq('id', itemId);
+    }
   },
 
   async equipItem(item) {
@@ -140,7 +142,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     const newEquipped = { ...equipped, [item.slot]: item };
     set({ items: newItems, equipped: newEquipped });
 
-    if (profile && !profile.id.startsWith('guest_')) {
+    if (profile && !profile.id.startsWith('guest_') && supabase) {
       // Upsert player_equipment
       await supabase.from('player_equipment').upsert({
         player_id: profile.id,
@@ -159,7 +161,7 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
     delete newEquipped[slot];
     set({ equipped: newEquipped, items: [...items, item] });
 
-    if (profile && !profile.id.startsWith('guest_')) {
+    if (profile && !profile.id.startsWith('guest_') && supabase) {
       await supabase.from('player_equipment').update({
         [slot === 'ring' ? 'ring1' : slot]: null
       }).eq('player_id', profile.id);

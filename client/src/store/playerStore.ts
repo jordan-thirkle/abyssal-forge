@@ -54,6 +54,8 @@ export const usePlayerStore = create<PlayerState>((set, get) => ({
 
     try {
       // 1. Sign in anonymously
+      if (!supabase) throw new Error("Supabase client not initialized");
+      
       const { data: authData, error: authError } = await supabase.auth.signInAnonymously();
       if (authError) throw authError;
 
