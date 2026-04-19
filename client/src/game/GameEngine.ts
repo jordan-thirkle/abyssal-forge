@@ -60,33 +60,38 @@ export class GameEngine {
     ambient.diffuse = new Color3(0.4, 0.3, 0.6);
     ambient.groundColor = new Color3(0.05, 0.04, 0.1);
 
-    // AAA Post-Processing Pipeline
+    // AAA Post-Processing Pipeline - Initialize with empty camera list to avoid crash
     this.pipeline = new DefaultRenderingPipeline(
       "aaa_pipeline", 
       true, 
       this.scene, 
-      [this.scene.activeCamera!]
+      []
     );
     
-    // Bloom (Magic glow)
+    // Configure default settings
     this.pipeline.bloomEnabled = true;
     this.pipeline.bloomThreshold = 0.6;
     this.pipeline.bloomWeight = 0.4;
     this.pipeline.bloomKernel = 64;
 
-    // Vignette (Cinematic focus)
     this.pipeline.imageProcessingEnabled = true;
     this.pipeline.imageProcessing.vignetteEnabled = true;
     this.pipeline.imageProcessing.vignetteWeight = 3;
     this.pipeline.imageProcessing.vignetteStretch = 0.5;
     this.pipeline.imageProcessing.vignetteColor = new Color4(0, 0, 0, 0);
 
-    // Chromatic Aberration (Lens distortion for depth)
     this.pipeline.chromaticAberrationEnabled = true;
     this.pipeline.chromaticAberration.aberrationAmount = 2.5;
     this.pipeline.chromaticAberration.radialIntensity = 0.2;
 
     return this.scene;
+  }
+
+  /** Attach a camera to the post-processing pipeline */
+  attachCameraToPipeline(camera: any): void {
+    if (this.pipeline && camera) {
+      this.pipeline.addCamera(camera);
+    }
   }
 
   /** Start the Babylon.js render loop */

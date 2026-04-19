@@ -60,6 +60,7 @@ export class DungeonScene {
 
     // 3. Player
     this.player = new Player(scene, layout.spawnPoint);
+    this.engine.attachCameraToPipeline(this.player.camera);
 
     // 4. Network Setup (Phase 2/3 Authorization Scaffold)
     const profile = usePlayerStore.getState().profile;

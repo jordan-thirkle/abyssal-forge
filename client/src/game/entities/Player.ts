@@ -28,7 +28,7 @@ export interface PlayerInput {
 export class Player {
   public mesh: Mesh;
   private scene: Scene;
-  private camera: ArcRotateCamera;
+  public camera: ArcRotateCamera;
   private stats: BaseStats;
 
   private input: PlayerInput = { forward: false, backward: false, left: false, right: false, lightAttack: false, heavyAttack: false, dodge: false };
