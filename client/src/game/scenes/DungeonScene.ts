@@ -66,7 +66,7 @@ export class DungeonScene {
     if (profile) {
       try {
         await this.network.joinDungeon(tier, profile.id);
-        console.log("Connected to dungeon room:", this.network.room?.id);
+        console.log("Connected to dungeon room:", this.network.room?.roomId);
       } catch (e) {
         console.warn("Failed to join multiplayer room, playing in offline mode", e);
       }
