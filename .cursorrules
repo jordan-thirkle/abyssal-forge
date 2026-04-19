@@ -1,0 +1,42 @@
+You are building Abyssal Forge, a 3D dark-fantasy browser RPG for the Cursor Vibe Jam 2026.
+
+TECH STACK:
+- Client: Babylon.js 7, React 18, Zustand 4, Vite 5, TypeScript 5 strict
+- Server: Colyseus 0.15, Node.js 20, Express 4
+- Data: Supabase (Postgres + Auth + Realtime) [Phase 2+]
+
+CODING RULES:
+1. Never use `any`. All types must come from /shared/types/.
+2. All game constants live in /shared/constants/. Never hardcode values.
+3. Game logic (damage, loot rolls, XP) must be duplicated on server for authority.
+4. Client systems are for display and prediction only. Server is truth.
+5. Every Zustand store uses the slice pattern with selectors.
+6. Every Babylon.js mesh must be disposed when scene unloads to prevent memory leaks.
+7. All Supabase queries use RLS-protected endpoints. Never bypass RLS.
+8. Colyseus message types must be typed with a discriminated union.
+9. Use framer-motion for all UI transitions. No CSS transitions for game UI.
+10. All async functions are async/await with try/catch. No promise chains.
+
+FILE HEADERS: Every file must start with:
+/**
+ * @description [what this file does]
+ * @author Abyssal Forge
+ * @version 1.0.0
+ */
+
+AESTHETIC RULES:
+- Dark background: #0D0D0F
+- Primary accent: #A855F7 (purple)
+- Secondary accent: #EF4444 (red)
+- Text primary: #F9FAFB
+- Text secondary: #6B7280
+- Glassmorphism: backdrop-filter: blur(12px), background: rgba(255,255,255,0.04)
+- Fonts: 'Inter' for UI, 'JetBrains Mono' for numbers/stats
+- All hit numbers, XP gains, damage must have a pop animation (scale 1→1.2→1 over 150ms)
+
+COMPETITION RULES (Vibe Jam 2026):
+- Widget snippet MUST be in index.html at all times
+- NO loading screens — all assets must be procedural (Babylon.js primitives only)
+- Game must be instantly playable with no login/signup
+- Guest name auto-generated (e.g. VoidWalker#4821) — no username prompt
+- Portal webring exit/entry must be functional
