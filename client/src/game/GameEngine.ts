@@ -49,16 +49,16 @@ export class GameEngine {
     
     // AAA Fog & Atmosphere
     this.scene.fogMode = Scene.FOGMODE_EXP2;
-    this.scene.fogDensity = 0.045;
+    this.scene.fogDensity = 0.025; // Decreased from 0.045
     const bgColor = Color3.FromHexString('#050508');
     this.scene.fogColor = bgColor;
-    this.scene.ambientColor = bgColor.scale(0.1);
+    this.scene.ambientColor = bgColor.scale(0.2);
 
     // Dungeon ambient — dark but cinematic
     const ambient = new HemisphericLight('ambient', new Vector3(0, 1, 0), this.scene);
-    ambient.intensity = 0.15; // Darker for more contrast
-    ambient.diffuse = new Color3(0.4, 0.3, 0.6);
-    ambient.groundColor = new Color3(0.05, 0.04, 0.1);
+    ambient.intensity = 0.35; // Increased from 0.15
+    ambient.diffuse = new Color3(0.5, 0.4, 0.7);
+    ambient.groundColor = new Color3(0.1, 0.08, 0.15);
 
     // AAA Post-Processing Pipeline - Initialize with empty camera list to avoid crash
     this.pipeline = new DefaultRenderingPipeline(

@@ -6,7 +6,7 @@
  */
 import {
   Scene, MeshBuilder, StandardMaterial, Color3, Vector3,
-  PointLight, Mesh,
+  PointLight, Mesh, DynamicTexture,
 } from '@babylonjs/core';
 
 export interface Room {
@@ -46,89 +46,172 @@ export class DungeonGenerator {
 
   private generateRooms(): Room[] {
     const rooms: Room[] = [];
-    const count = 4 + this.tier;
+    const count = 6 + this.tier * 2;
     let curX = 0, curZ = 0;
     for (let i = 0; i < count; i++) {
-      const w = 12 + Math.floor(Math.random() * 10);
-      const h = 12 + Math.floor(Math.random() * 10);
+      const w = 15 + Math.floor(Math.random() * 15);
+      const h = 15 + Math.floor(Math.random() * 15);
       rooms.push({ x: curX, z: curZ, w, h });
-      curX += w + 4 + Math.floor(Math.random() * 6);
-      curZ += (Math.random() - 0.5) * 8;
+      
+      // Random walk for next room
+      const dir = Math.random() > 0.5 ? 'X' : 'Z';
+      if (dir === 'X') {
+        curX += w + 8 + Math.floor(Math.random() * 10);
+        curZ += (Math.random() - 0.5) * 10;
+      } else {
+        curZ += h + 8 + Math.floor(Math.random() * 10);
+        curX += (Math.random() - 0.5) * 10;
+      }
     }
     return rooms;
   }
 
   private buildGeometry(rooms: Room[]): void {
     const floorMat = new StandardMaterial('floorMat', this.scene);
-    floorMat.diffuseColor = new Color3(0.15, 0.14, 0.18);
-    floorMat.specularColor = new Color3(0.05, 0.05, 0.05);
+    floorMat.diffuseColor = new Color3(0.12, 0.11, 0.14);
+    floorMat.specularColor = new Color3(0.1, 0.1, 0.1);
+    floorMat.bumpTexture = this.createNoiseTexture(0.2); // Subtle noise for "stone" look
 
     const wallMat = new StandardMaterial('wallMat', this.scene);
-    wallMat.diffuseColor = new Color3(0.12, 0.11, 0.15);
+    wallMat.diffuseColor = new Color3(0.08, 0.07, 0.1);
     wallMat.specularColor = Color3.Black();
 
     for (let i = 0; i < rooms.length; i++) {
       const r = rooms[i];
-      // Floor tile
-      const floor = MeshBuilder.CreateGround(`floor_${i}`, { width: r.w, height: r.h, subdivisions: 2 }, this.scene);
+      // AAA: Floor with border
+      const floor = MeshBuilder.CreateGround(`floor_${i}`, { width: r.w, height: r.h }, this.scene);
       floor.position.set(r.x, 0, r.z);
       floor.material = floorMat;
       floor.checkCollisions = true;
       this.meshes.push(floor);
 
-      // Walls (4 sides)
-      const wallH = 4;
-      const walls = [
-        { pos: new Vector3(r.x, wallH / 2, r.z - r.h / 2), w: r.w, d: 0.5 },
-        { pos: new Vector3(r.x, wallH / 2, r.z + r.h / 2), w: r.w, d: 0.5 },
-        { pos: new Vector3(r.x - r.w / 2, wallH / 2, r.z), w: 0.5, d: r.h },
-        { pos: new Vector3(r.x + r.w / 2, wallH / 2, r.z), w: 0.5, d: r.h },
-      ];
-      walls.forEach((wDef, wi) => {
-        const wall = MeshBuilder.CreateBox(`wall_${i}_${wi}`, { width: wDef.w, height: wallH, depth: wDef.d }, this.scene);
-        wall.position = wDef.pos;
-        wall.material = wallMat;
-        wall.checkCollisions = true;
-        this.meshes.push(wall);
-      });
+      // AAA: Pillars in corners for depth
+      this.spawnPillar(new Vector3(r.x - r.w/2 + 1, 0, r.z - r.h/2 + 1));
+      this.spawnPillar(new Vector3(r.x + r.w/2 - 1, 0, r.z - r.h/2 + 1));
+      this.spawnPillar(new Vector3(r.x - r.w/2 + 1, 0, r.z + r.h/2 - 1));
+      this.spawnPillar(new Vector3(r.x + r.w/2 - 1, 0, r.z + r.h/2 - 1));
 
-      // Torch every 2 rooms
-      if (i % 2 === 0) this.spawnTorch(new Vector3(r.x - r.w / 2 + 1, 1.5, r.z));
+      // AAA: Rubble/Debris
+      for (let j = 0; j < 5; j++) {
+        this.spawnRubble(new Vector3(
+          r.x + (Math.random() - 0.5) * r.w * 0.7,
+          0.1,
+          r.z + (Math.random() - 0.5) * r.h * 0.7
+        ));
+      }
+
+      // Walls
+      const wallH = 6;
+      this.buildWalls(r, wallH, wallMat, i);
+
+      // Corridors to next room
+      if (i < rooms.length - 1) {
+        this.buildCorridor(r, rooms[i+1], floorMat, wallMat);
+      }
+
+      // Torches
+      if (i % 2 === 0) {
+        this.spawnTorch(new Vector3(r.x - r.w/2 + 0.6, 2.5, r.z));
+      }
     }
   }
 
+  private buildWalls(r: Room, h: number, mat: StandardMaterial, id: number): void {
+    const walls = [
+      { pos: new Vector3(r.x, h / 2, r.z - r.h / 2), w: r.w, d: 0.8 },
+      { pos: new Vector3(r.x, h / 2, r.z + r.h / 2), w: r.w, d: 0.8 },
+      { pos: new Vector3(r.x - r.w / 2, h / 2, r.z), w: 0.8, d: r.h },
+      { pos: new Vector3(r.x + r.w / 2, h / 2, r.z), w: 0.8, d: r.h },
+    ];
+    walls.forEach((wDef, wi) => {
+      const wall = MeshBuilder.CreateBox(`wall_${id}_${wi}`, { width: wDef.w, height: h, depth: wDef.d }, this.scene);
+      wall.position = wDef.pos;
+      wall.material = mat;
+      wall.checkCollisions = true;
+      this.meshes.push(wall);
+    });
+  }
+
+  private buildCorridor(r1: Room, r2: Room, fMat: StandardMaterial, wMat: StandardMaterial): void {
+    const start = new Vector3(r1.x, 0, r1.z);
+    const end = new Vector3(r2.x, 0, r2.z);
+    const diff = end.subtract(start);
+    const dist = diff.length();
+    
+    const corridor = MeshBuilder.CreateBox('corridor', { width: 6, height: 0.1, depth: dist }, this.scene);
+    corridor.position = start.add(diff.scale(0.5));
+    corridor.lookAt(end);
+    corridor.material = fMat;
+    corridor.checkCollisions = true;
+    this.meshes.push(corridor);
+  }
+
+  private spawnPillar(pos: Vector3): void {
+    const pillar = MeshBuilder.CreateBox('pillar', { width: 1.2, height: 6, depth: 1.2 }, this.scene);
+    pillar.position = pos;
+    pillar.position.y = 3;
+    const pMat = new StandardMaterial('pMat', this.scene);
+    pMat.diffuseColor = new Color3(0.1, 0.09, 0.12);
+    pillar.material = pMat;
+    pillar.checkCollisions = true;
+    this.meshes.push(pillar);
+  }
+
+  private spawnRubble(pos: Vector3): void {
+    const size = 0.2 + Math.random() * 0.4;
+    const rubble = MeshBuilder.CreateBox('rubble', { size }, this.scene);
+    rubble.position = pos;
+    rubble.rotation.set(Math.random(), Math.random(), Math.random());
+    const rMat = new StandardMaterial('rMat', this.scene);
+    rMat.diffuseColor = new Color3(0.05, 0.05, 0.06);
+    rubble.material = rMat;
+    this.meshes.push(rubble);
+  }
+
+  private createNoiseTexture(alpha: number): any {
+    // Basic dynamic texture with noise for "rough stone" look
+    const tex = new DynamicTexture('stone_noise', 256, this.scene);
+    const ctx = tex.getContext();
+    for(let i=0; i<1000; i++) {
+      const x = Math.random()*256;
+      const y = Math.random()*256;
+      ctx.fillStyle = `rgba(255,255,255,${alpha * Math.random()})`;
+      ctx.fillRect(x,y,2,2);
+    }
+    tex.update();
+    return tex;
+  }
+
   private spawnTorch(pos: Vector3): void {
-    const torch = MeshBuilder.CreateCylinder('torch', { diameter: 0.15, height: 0.8 }, this.scene);
+    const torch = MeshBuilder.CreateCylinder('torch', { diameter: 0.2, height: 1.2 }, this.scene);
     torch.position = pos;
     const torchMat = new StandardMaterial('torchMat', this.scene);
-    torchMat.diffuseColor = new Color3(0.4, 0.25, 0.1);
+    torchMat.diffuseColor = new Color3(0.3, 0.2, 0.1);
     torch.material = torchMat;
     this.meshes.push(torch);
 
-    const light = new PointLight(`torchLight_${pos.x}`, pos.add(new Vector3(0, 0.5, 0)), this.scene);
-    light.diffuse = new Color3(1, 0.55, 0.1);
-    light.intensity = 2.5;
-    light.range = 14;
+    const light = new PointLight(`torchLight_${Math.random()}`, pos.add(new Vector3(0, 0.8, 0)), this.scene);
+    light.diffuse = new Color3(1, 0.45, 0.1);
+    light.intensity = 3;
+    light.range = 15;
 
-    // Flicker via simple sine animation
-    let t = Math.random() * Math.PI * 2;
+    let t = Math.random() * 10;
     this.scene.onBeforeRenderObservable.add(() => {
-      t += 0.08;
-      light.intensity = 1.0 + Math.sin(t) * 0.25 + Math.sin(t * 2.3) * 0.1;
+      t += 0.1;
+      light.intensity = 2 + Math.sin(t) * 0.5 + Math.random() * 0.2;
     });
   }
 
   private placeEnemySpawns(rooms: Room[]): Vector3[] {
     const spawns: Vector3[] = [];
-    // Skip first (spawn) and last (boss) rooms
-    for (let i = 1; i < rooms.length - 1; i++) {
+    for (let i = 1; i < rooms.length; i++) {
       const r = rooms[i];
-      const count = 3 + this.tier;
+      const count = 4 + this.tier * 2;
       for (let j = 0; j < count; j++) {
         spawns.push(new Vector3(
-          r.x + (Math.random() - 0.5) * (r.w - 4),
+          r.x + (Math.random() - 0.5) * (r.w - 6),
           0.5,
-          r.z + (Math.random() - 0.5) * (r.h - 4)
+          r.z + (Math.random() - 0.5) * (r.h - 6)
         ));
       }
     }
