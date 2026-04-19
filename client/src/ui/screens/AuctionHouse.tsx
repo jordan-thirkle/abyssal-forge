@@ -17,7 +17,9 @@ export default function AuctionHouse() {
       display: 'flex', flexDirection: 'column', color: '#F9FAFB', fontFamily: "'Outfit', sans-serif",
       boxShadow: '0 0 60px rgba(0,0,0,0.95)', pointerEvents: 'auto',
       zIndex: 50
-    }}>
+    }}
+    onClick={(e) => e.stopPropagation()}
+    >
       {/* Header */}
       <div style={{ padding: 24, borderBottom: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 style={{ fontSize: 24, fontWeight: 800, color: '#3B82F6' }}>Auction House</h2>

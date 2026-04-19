@@ -36,8 +36,10 @@ export default function ArenaOverlay() {
         top: '50%',
         left: '50%',
         transform: 'translate(-50%, -50%)',
-        zIndex: 100
+        zIndex: 100,
+        pointerEvents: 'auto'
       }}
+      onClick={(e) => e.stopPropagation()}
     >
       <h2 style={{ fontFamily: "'Cinzel', serif", color: '#ffcc00', marginBottom: 24, fontSize: 32 }}>THE ARENA</h2>
       

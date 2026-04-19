@@ -22,7 +22,9 @@ export default function Forge() {
       display: 'flex', flexDirection: 'column', color: '#F9FAFB', fontFamily: "'Outfit', sans-serif",
       boxShadow: '0 0 50px rgba(245,158,11,0.15)', pointerEvents: 'auto',
       zIndex: 50, padding: 12
-    }}>
+    }}
+    onClick={(e) => e.stopPropagation()}
+    >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 }}>
         <h2 style={{ fontSize: 20, fontWeight: 800, color: '#F59E0B' }}>The Abyssal Forge</h2>
         <div style={{ fontSize: 14, color: '#9CA3AF' }}>Craft XP: <span style={{ color: '#F9FAFB' }}>{profile.craftXP}</span></div>

@@ -31,7 +31,8 @@ export default function App() {
     const loadScene = async () => {
       setLoading(true);
       
-      // Cleanup previous scene
+      // 1. Stop existing loop and cleanup
+      engine.stopRenderLoop(); 
       if (sceneRef.current) {
         sceneRef.current.dispose();
       }
@@ -44,11 +45,10 @@ export default function App() {
           activeScene = new ArenaScene(engine);
         }
 
+        // 2. Build and start new scene
         sceneRef.current = activeScene;
         await activeScene.build();
         
-        // Restart render loop for new scene
-        engine.stopRenderLoop();
         engine.startRenderLoop(() => activeScene.update());
       } catch (e) {
         console.error("SCENE LOAD ERROR", e);

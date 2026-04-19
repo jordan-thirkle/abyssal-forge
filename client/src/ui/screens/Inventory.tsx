@@ -24,7 +24,9 @@ export default function Inventory() {
       display: 'flex', color: '#F9FAFB', fontFamily: "'Outfit', sans-serif",
       boxShadow: '0 0 60px rgba(0,0,0,0.9)', pointerEvents: 'auto',
       zIndex: 50,
-    }}>
+    }}
+    onClick={(e) => e.stopPropagation()}
+    >
       {/* Left side: Character Equipment */}
       <div style={{ width: 300, borderRight: '1px solid rgba(255,255,255,0.1)', padding: 24, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <h2 style={{ fontSize: 18, fontWeight: 700, color: '#A855F7', marginBottom: 24 }}>Equipment</h2>

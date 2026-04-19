@@ -135,33 +135,76 @@ export class DungeonGenerator {
   }
 
   private buildWalls(r: Room, h: number, mat: StandardMaterial, id: number): void {
-    const walls = [
-      { pos: new Vector3(r.x, h / 2, r.z - r.h / 2), w: r.w, d: 0.8 },
-      { pos: new Vector3(r.x, h / 2, r.z + r.h / 2), w: r.w, d: 0.8 },
-      { pos: new Vector3(r.x - r.w / 2, h / 2, r.z), w: 0.8, d: r.h },
-      { pos: new Vector3(r.x + r.w / 2, h / 2, r.z), w: 0.8, d: r.h },
+    const doorSize = 7;
+    
+    // Each wall side (North, South, East, West) built as 2 segments with a gap
+    const configs = [
+      // North
+      { center: new Vector3(r.x, h/2, r.z - r.h/2), w: r.w, d: 0.8, isHorizontal: true },
+      // South
+      { center: new Vector3(r.x, h/2, r.z + r.h/2), w: r.w, d: 0.8, isHorizontal: true },
+      // West
+      { center: new Vector3(r.x - r.w/2, h/2, r.z), w: 0.8, d: r.h, isHorizontal: false },
+      // East
+      { center: new Vector3(r.x + r.w/2, h/2, r.z), w: 0.8, d: r.h, isHorizontal: false },
     ];
-    walls.forEach((wDef, wi) => {
-      const wall = MeshBuilder.CreateBox(`wall_${id}_${wi}`, { width: wDef.w, height: h, depth: wDef.d }, this.scene);
-      wall.position = wDef.pos;
-      wall.material = mat;
-      wall.checkCollisions = true;
-      this.meshes.push(wall);
+
+    configs.forEach((cfg, ci) => {
+      if (cfg.isHorizontal) {
+        const segW = (cfg.w - doorSize) / 2;
+        const left = MeshBuilder.CreateBox(`w_${id}_${ci}_l`, { width: segW, height: h, depth: cfg.d }, this.scene);
+        left.position.set(cfg.center.x - segW/2 - doorSize/2, h/2, cfg.center.z);
+        left.material = mat;
+        left.checkCollisions = true;
+        
+        const right = MeshBuilder.CreateBox(`w_${id}_${ci}_r`, { width: segW, height: h, depth: cfg.d }, this.scene);
+        right.position.set(cfg.center.x + segW/2 + doorSize/2, h/2, cfg.center.z);
+        right.material = mat;
+        right.checkCollisions = true;
+        this.meshes.push(left, right);
+      } else {
+        const segD = (cfg.d - doorSize) / 2;
+        const top = MeshBuilder.CreateBox(`w_${id}_${ci}_t`, { width: cfg.w, height: h, depth: segD }, this.scene);
+        top.position.set(cfg.center.x, h/2, cfg.center.z - segD/2 - doorSize/2);
+        top.material = mat;
+        top.checkCollisions = true;
+
+        const bot = MeshBuilder.CreateBox(`w_${id}_${ci}_b`, { width: cfg.w, height: h, depth: segD }, this.scene);
+        bot.position.set(cfg.center.x, h/2, cfg.center.z + segD/2 + doorSize/2);
+        bot.material = mat;
+        bot.checkCollisions = true;
+        this.meshes.push(top, bot);
+      }
     });
   }
 
   private buildCorridor(r1: Room, r2: Room, fMat: StandardMaterial, wMat: StandardMaterial): void {
-    const start = new Vector3(r1.x, 0, r1.z);
-    const end = new Vector3(r2.x, 0, r2.z);
-    const diff = end.subtract(start);
-    const dist = diff.length();
-    
+    const dx = r2.x - r1.x;
+    const dz = r2.z - r1.z;
+    const dist = Math.sqrt(dx*dx + dz*dz);
+    const angle = Math.atan2(dx, dz);
+
     const corridor = MeshBuilder.CreateBox('corridor', { width: 6, height: 0.1, depth: dist }, this.scene);
-    corridor.position = start.add(diff.scale(0.5));
-    corridor.lookAt(end);
+    corridor.position.set(r1.x + dx/2, 0.05, r1.z + dz/2);
+    corridor.rotation.y = angle;
     corridor.material = fMat;
-    corridor.checkCollisions = true;
     this.meshes.push(corridor);
+
+    // Corridor Walls
+    const wallH = 6;
+    const leftWall = MeshBuilder.CreateBox('c_wall_l', { width: 0.8, height: wallH, depth: dist }, this.scene);
+    leftWall.parent = corridor;
+    leftWall.position.set(-3.4, wallH/2, 0);
+    leftWall.material = wMat;
+    leftWall.checkCollisions = true;
+
+    const rightWall = MeshBuilder.CreateBox('c_wall_r', { width: 0.8, height: wallH, depth: dist }, this.scene);
+    rightWall.parent = corridor;
+    rightWall.position.set(3.4, wallH/2, 0);
+    rightWall.material = wMat;
+    rightWall.checkCollisions = true;
+    
+    this.meshes.push(leftWall, rightWall);
   }
 
   private spawnPillar(pos: Vector3): void {

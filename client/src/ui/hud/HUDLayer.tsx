@@ -18,11 +18,13 @@ import Inventory from '../screens/Inventory';
 import Forge from '../screens/Forge';
 import AuctionHouse from '../screens/AuctionHouse';
 import ArenaOverlay from '../screens/ArenaOverlay';
+import ControlsOverlay from '../components/ControlsOverlay';
 
 export default function HUDLayer() {
   const isLevelingUp = usePlayerStore(s => s.isLevelingUp);
   const activeScreen = useGameStore(s => s.activeScreen);
   const setActiveScreen = useGameStore(s => s.setActiveScreen);
+  const [showControls, setShowControls] = React.useState(true);
 
   // Close screen on ESC
   React.useEffect(() => {
@@ -95,9 +97,22 @@ export default function HUDLayer() {
       </div>
 
       {/* Level-up overlay */}
+      {/* Controls / Tutorial Overlay */}
       <AnimatePresence>
-        {isLevelingUp && <LevelUpOverlay />}
+        {showControls && <ControlsOverlay onClose={() => setShowControls(false)} />}
       </AnimatePresence>
+
+      {/* Help Button */}
+      <button 
+        onClick={() => setShowControls(true)}
+        style={{ 
+          position: 'absolute', bottom: 24, right: 24, pointerEvents: 'auto',
+          width: 32, height: 32, borderRadius: '50%', background: 'rgba(59,130,246,0.3)',
+          border: '1px solid rgba(59,130,246,0.5)', color: '#fff', cursor: 'pointer'
+        }}
+      >
+        ?
+      </button>
     </div>
   );
 }
