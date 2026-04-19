@@ -15,14 +15,23 @@ export class ColyseusClient {
   }
 
   public async joinDungeon(tier: number, playerId: string): Promise<Colyseus.Room> {
-    if (this.room) {
-      await this.room.leave();
-    }
+    if (this.room) await this.room.leave();
     try {
-      this.room = await this.client.joinOrCreate('dungeon_room', { tier, playerId });
+      this.room = await this.client.joinOrCreate('dungeon', { tier, playerId });
       return this.room;
     } catch (e) {
       console.error("COLYSEUS JOIN ERROR", e);
+      throw e;
+    }
+  }
+
+  public async joinArena(playerId: string, username: string): Promise<Colyseus.Room> {
+    if (this.room) await this.room.leave();
+    try {
+      this.room = await this.client.joinOrCreate('arena', { playerId, username });
+      return this.room;
+    } catch (e) {
+      console.error("COLYSEUS ARENA JOIN ERROR", e);
       throw e;
     }
   }

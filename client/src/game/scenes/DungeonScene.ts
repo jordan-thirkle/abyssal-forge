@@ -16,6 +16,8 @@ import type { Item } from '@shared/types/item.types';
 import { ColyseusClient } from '../network/ColyseusClient';
 import { AudioSystem } from '../systems/AudioSystem';
 
+import { Chest } from '../entities/Chest';
+
 interface DungeonSceneOptions {
   tier?: number;
   fromPortal?: boolean;
@@ -28,6 +30,7 @@ export class DungeonScene {
   private generator!: DungeonGenerator;
   private player!: Player;
   private enemies: Enemy[] = [];
+  private chests: Chest[] = [];
   private combat!: CombatSystem;
   private loot!: LootSystem;
   private xp!: XPSystem;
@@ -131,6 +134,25 @@ export class DungeonScene {
 
       this.enemies.push(enemy);
     });
+
+    // 5. Spawn Chests
+    layout.chestSpawns.forEach(pos => {
+      const chest = new Chest(scene, pos);
+      this.chests.push(chest);
+    });
+  }
+
+  private tryOpenChest(chest: Chest): void {
+    if (chest.open()) {
+      const tier = this.options.tier ?? 1;
+      // Drop multiple items from chests
+      const count = 2 + Math.floor(Math.random() * 3);
+      for (let i = 0; i < count; i++) {
+        // High rarity boost for chests
+        this.tryDropLoot(chest.position.add(new Vector3((Math.random()-0.5)*2, 0.5, (Math.random()-0.5)*2)), tier, true);
+      }
+      AudioSystem.playUIClick(); // Placeholder for chest sound
+    }
   }
 
   private checkEnemyDeath(enemyId: string): void {
@@ -140,9 +162,9 @@ export class DungeonScene {
     }
   }
 
-  private tryDropLoot(pos: Vector3, tier: number): void {
-    if (!LootSystem.rollDrop(tier)) return;
-    const rarity = LootSystem.rollRarity();
+  private tryDropLoot(pos: Vector3, tier: number, isChest = false): void {
+    if (!isChest && !LootSystem.rollDrop(tier)) return;
+    const rarity = isChest ? LootSystem.rollChestRarity() : LootSystem.rollRarity();
     const item: Item = {
       id: `item_${Math.random().toString(36).slice(2)}`,
       templateId: 'basic_sword',
@@ -187,12 +209,22 @@ export class DungeonScene {
     }
 
     this.loot.update(this.player.position);
+
+    // Chest proximity check
+    this.chests.forEach(chest => {
+      if (!chest.isOpened) {
+        const dist = Vector3.Distance(this.player.position, chest.position);
+        if (dist < 2.5) this.tryOpenChest(chest);
+      }
+    });
+
     this.portal.update(this.player.position, profile);
   }
 
   dispose(): void {
     this.player.dispose();
     this.enemies.forEach(e => e.dispose());
+    this.chests.forEach(c => c.dispose());
     this.combat.dispose();
     this.loot.dispose();
     this.portal.dispose();

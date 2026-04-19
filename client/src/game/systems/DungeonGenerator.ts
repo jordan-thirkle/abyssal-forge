@@ -21,6 +21,7 @@ export interface DungeonLayout {
   spawnPoint: Vector3;
   bossRoom: Room;
   enemySpawns: Vector3[];
+  chestSpawns: Vector3[];
   exitPosition: Vector3;
 }
 
@@ -41,7 +42,24 @@ export class DungeonGenerator {
     const bossRoom = rooms[rooms.length - 1];
     const exitPosition = new Vector3(bossRoom.x, 0.5, bossRoom.z + bossRoom.h / 2 - 2);
     const enemySpawns = this.placeEnemySpawns(rooms);
-    return { rooms, spawnPoint, bossRoom, enemySpawns, exitPosition };
+    const chestSpawns = this.placeChestSpawns(rooms);
+    return { rooms, spawnPoint, bossRoom, enemySpawns, chestSpawns, exitPosition };
+  }
+
+  private placeChestSpawns(rooms: Room[]): Vector3[] {
+    const spawns: Vector3[] = [];
+    // Place 1-2 chests in every 2 rooms
+    for (let i = 1; i < rooms.length; i++) {
+      if (i % 2 === 0 || Math.random() > 0.7) {
+        const r = rooms[i];
+        spawns.push(new Vector3(
+          r.x + (Math.random() - 0.5) * (r.w - 4),
+          0,
+          r.z + (Math.random() - 0.5) * (r.h - 4)
+        ));
+      }
+    }
+    return spawns;
   }
 
   private generateRooms(): Room[] {

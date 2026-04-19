@@ -8,6 +8,7 @@ import React, { useEffect, useRef } from 'react';
 import { AnimatePresence } from 'framer-motion';
 import { GameEngine } from '../game/GameEngine';
 import { DungeonScene } from '../game/scenes/DungeonScene';
+import { ArenaScene } from '../game/scenes/ArenaScene';
 import { useGameStore } from '../store/gameStore';
 import { usePlayerStore } from '../store/playerStore';
 import { generateGuestName } from '@shared/types/player.types';
@@ -16,58 +17,67 @@ import HUDLayer from './hud/HUDLayer';
 export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
-  const sceneRef = useRef<DungeonScene | null>(null);
+  const sceneRef = useRef<any>(null); // Dynamic scene ref
 
-  const { isLoading, setLoading, setScene } = useGameStore();
+  const { isLoading, setLoading, setScene, currentScene } = useGameStore();
   const initPlayer = usePlayerStore((s) => s.init);
 
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    const boot = async () => {
-      setLoading(true);
-      try {
-        // Parse portal params from URL
-        const params = new URLSearchParams(window.location.search);
-        const fromPortal = params.get('portal') === 'true';
-        const refDomain = params.get('ref') ?? undefined;
-        const portalUsername = params.get('username') ?? undefined;
-        const portalHp = params.get('hp') ? parseInt(params.get('hp')!, 10) : undefined;
+    const engine = engineRef.current || new GameEngine(canvasRef.current!);
+    engineRef.current = engine;
 
-        const username = portalUsername ?? generateGuestName();
-        
-        // Attempt Supabase init, but don't block forever
-        try {
-          await initPlayer(username, fromPortal, portalHp);
-        } catch (e) {
-          console.error("Supabase init failed, continuing in guest mode", e);
+    const loadScene = async () => {
+      setLoading(true);
+      
+      // Cleanup previous scene
+      if (sceneRef.current) {
+        sceneRef.current.dispose();
+      }
+
+      try {
+        let activeScene: any;
+        if (currentScene === 'dungeon') {
+          activeScene = new DungeonScene(engine, { tier: 1 });
+        } else if (currentScene === 'arena') {
+          activeScene = new ArenaScene(engine);
         }
 
-        const engine = new GameEngine(canvasRef.current!);
-        engineRef.current = engine;
-
-        const dungeonScene = new DungeonScene(engine, { fromPortal, refDomain });
-        sceneRef.current = dungeonScene;
+        sceneRef.current = activeScene;
+        await activeScene.build();
         
-        // Build the scene
-        await dungeonScene.build();
-
-        engine.startRenderLoop(() => dungeonScene.update());
-        setScene('dungeon');
+        // Restart render loop for new scene
+        engine.stopRenderLoop();
+        engine.startRenderLoop(() => activeScene.update());
       } catch (e) {
-        console.error("FATAL GAME BOOT ERROR", e);
+        console.error("SCENE LOAD ERROR", e);
       } finally {
         setLoading(false);
       }
     };
 
+    // Initial boot (Auth + Engine)
+    const boot = async () => {
+      if (!engineRef.current) {
+        setLoading(true);
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const username = params.get('username') ?? generateGuestName();
+          await initPlayer(username);
+        } finally {
+          setLoading(false);
+        }
+      }
+      loadScene();
+    };
+
     boot();
 
     return () => {
-      sceneRef.current?.dispose();
-      engineRef.current?.dispose();
+      // sceneRef.current?.dispose(); // handled on scene change
     };
-  }, [initPlayer, setScene, setLoading]);
+  }, [currentScene, initPlayer, setScene, setLoading]);
 
   return (
     <>

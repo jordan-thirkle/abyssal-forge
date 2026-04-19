@@ -6,7 +6,7 @@
 import { create } from 'zustand';
 
 type SceneKey = 'dungeon' | 'arena' | 'hub';
-export type GameScreen = 'none' | 'inventory' | 'forge' | 'auction' | 'skills';
+export type GameScreen = 'none' | 'inventory' | 'forge' | 'auction' | 'skills' | 'arena';
 
 interface GameState {
   currentScene: SceneKey;

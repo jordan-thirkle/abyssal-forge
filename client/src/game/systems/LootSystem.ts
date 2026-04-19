@@ -27,6 +27,17 @@ export class LootSystem {
     this.scene = scene;
   }
 
+  /** Roll a rarity with a significant luck boost for chests */
+  static rollChestRarity(): ItemRarity {
+    const roll = Math.random();
+    // Shifted weights: Common 10%, Rare 30%, Epic 30%, Legendary 20%, Abyssal 10%
+    if (roll < 0.1) return 'common';
+    if (roll < 0.4) return 'rare';
+    if (roll < 0.7) return 'epic';
+    if (roll < 0.9) return 'legendary';
+    return 'abyssal';
+  }
+
   /** Roll a rarity using weighted table */
   static rollRarity(): ItemRarity {
     const roll = Math.random();

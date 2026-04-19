@@ -17,6 +17,7 @@ import { AudioSystem } from '../../game/systems/AudioSystem';
 import Inventory from '../screens/Inventory';
 import Forge from '../screens/Forge';
 import AuctionHouse from '../screens/AuctionHouse';
+import ArenaOverlay from '../screens/ArenaOverlay';
 
 export default function HUDLayer() {
   const isLevelingUp = usePlayerStore(s => s.isLevelingUp);
@@ -67,6 +68,7 @@ export default function HUDLayer() {
       {activeScreen === 'inventory' && <Inventory />}
       {activeScreen === 'forge' && <Forge />}
       {activeScreen === 'auction' && <AuctionHouse />}
+      {activeScreen === 'arena' && <ArenaOverlay />}
 
       {/* Top-left: player nameplate */}
       <div style={{ position: 'absolute', top: 20, left: 20, pointerEvents: 'auto' }}>
@@ -78,6 +80,7 @@ export default function HUDLayer() {
         <button onClick={() => handleScreenToggle('inventory')} style={{ background: 'rgba(20,20,25,0.9)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '10px 20px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>Bag (I)</button>
         <button onClick={() => handleScreenToggle('forge')} style={{ background: 'rgba(20,20,25,0.9)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '10px 20px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>Forge</button>
         <button onClick={() => handleScreenToggle('auction')} style={{ background: 'rgba(20,20,25,0.9)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '10px 20px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>Auction</button>
+        <button onClick={() => handleScreenToggle('arena')} style={{ background: 'linear-gradient(180deg, #b32d2d 0%, #7a1a1a 100%)', border: '1px solid #ff4444', color: '#fff', padding: '10px 20px', borderRadius: 4, cursor: 'pointer', fontWeight: 600 }}>Arena</button>
       </div>
 
       {/* Bottom-left: HP + XP stacked */}

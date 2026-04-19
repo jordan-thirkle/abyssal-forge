@@ -8,6 +8,7 @@ import express from 'express';
 import { Server } from 'colyseus';
 import { monitor } from '@colyseus/monitor';
 import { DungeonRoom } from './rooms/DungeonRoom';
+import { ArenaRoom } from './rooms/ArenaRoom';
 
 const port = Number(process.env.PORT || 2567);
 const app = express();
@@ -18,8 +19,9 @@ const gameServer = new Server({
   server,
 });
 
-// Register DungeonRoom
+// Register Rooms
 gameServer.define('dungeon', DungeonRoom);
+gameServer.define('arena', ArenaRoom);
 
 // Register Colyseus monitor (useful for debugging)
 app.use('/colyseus', monitor());
