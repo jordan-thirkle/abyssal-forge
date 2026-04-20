@@ -22,7 +22,7 @@ interface GameState {
 }
 
 export const useGameStore = create<GameState>((set) => ({
-  currentScene: 'dungeon',
+  currentScene: 'hub',
   isLoading: false,
   isPaused: false,
   isMenuOpen: false,

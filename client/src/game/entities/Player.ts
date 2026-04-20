@@ -45,6 +45,9 @@ export class Player {
   public onLightAttack?: (step: number) => void;
   public onHeavyAttack?: () => void;
   public onDodge?: (dir: Vector3) => void;
+  
+  private keyDownHandler?: (e: KeyboardEvent) => void;
+  private keyUpHandler?: (e: KeyboardEvent) => void;
 
   constructor(scene: Scene, spawnPos: Vector3) {
     this.scene = scene;
@@ -78,21 +81,65 @@ export class Player {
     const root = new Mesh('player', this.scene);
     root.position = pos;
 
-    const mat = new StandardMaterial('playerMat', this.scene);
-    mat.diffuseColor = new Color3(0.45, 0.2, 0.65);
-    mat.emissiveColor = new Color3(0.1, 0.0, 0.2);
+    // Materials
+    const armorMat = new StandardMaterial('armorMat', this.scene);
+    armorMat.diffuseColor = new Color3(0.1, 0.1, 0.15);
+    armorMat.specularColor = new Color3(0.5, 0.5, 0.6);
+    armorMat.specularPower = 32;
 
-    const body = MeshBuilder.CreateCapsule('playerBody', { radius: 0.4, height: 1.8 }, this.scene);
-    body.material = mat;
-    body.position.y = 0.9;
+    const trimMat = new StandardMaterial('trimMat', this.scene);
+    trimMat.diffuseColor = new Color3(0.6, 0.5, 0.2);
+    trimMat.specularColor = new Color3(0.8, 0.7, 0.3);
+
+    const glowMat = new StandardMaterial('glowMat', this.scene);
+    glowMat.emissiveColor = new Color3(0.6, 0.2, 1.0);
+    glowMat.diffuseColor = new Color3(0.3, 0.1, 0.5);
+
+    // Torso (Armor)
+    const body = MeshBuilder.CreateCylinder('p_body', { diameterTop: 0.8, diameterBottom: 0.6, height: 1.2, tessellation: 8 }, this.scene);
+    body.material = armorMat;
+    body.position.y = 1.0;
     body.parent = root;
-    body.isPickable = false;
 
-    const head = MeshBuilder.CreateSphere('playerHead', { diameter: 0.55 }, this.scene);
-    head.material = mat;
-    head.position.y = 2.1;
+    // Head
+    const head = MeshBuilder.CreateSphere('p_head', { diameter: 0.5 }, this.scene);
+    head.material = armorMat;
+    head.position.y = 1.8;
     head.parent = root;
-    head.isPickable = false;
+
+    // Visor (Glowing)
+    const visor = MeshBuilder.CreateBox('p_visor', { width: 0.4, height: 0.15, depth: 0.1 }, this.scene);
+    visor.material = glowMat;
+    visor.position.set(0, 1.85, 0.22);
+    visor.parent = root;
+
+    // Shoulders
+    const shoulderL = MeshBuilder.CreateSphere('p_sl', { diameter: 0.4, segments: 4 }, this.scene);
+    shoulderL.material = trimMat;
+    shoulderL.position.set(-0.45, 1.4, 0);
+    shoulderL.scaling.y = 0.5;
+    shoulderL.parent = root;
+
+    const shoulderR = shoulderL.clone('p_sr');
+    shoulderR.position.set(0.45, 1.4, 0);
+    shoulderR.parent = root;
+
+    // Void Blade (Back/Side)
+    const blade = MeshBuilder.CreateBox('p_blade', { width: 0.1, height: 1.2, depth: 0.25 }, this.scene);
+    const bladeMat = new StandardMaterial('bladeMat', this.scene);
+    bladeMat.diffuseColor = new Color3(0.1, 0.05, 0.2);
+    bladeMat.emissiveColor = new Color3(0.2, 0.0, 0.4);
+    blade.material = bladeMat;
+    blade.position.set(0.3, 1.0, -0.3);
+    blade.rotation.x = Math.PI / 4;
+    blade.rotation.z = Math.PI / 8;
+    blade.parent = root;
+
+    // Base collider wrapper
+    const collider = MeshBuilder.CreateCapsule('p_col', { radius: 0.4, height: 2 }, this.scene);
+    collider.position.y = 1;
+    collider.isVisible = false;
+    collider.parent = root;
 
     return root;
   }
@@ -100,9 +147,12 @@ export class Player {
   private registerInputs(): void {
     const scene = this.scene;
 
-    scene.onKeyboardObservable.add((kbInfo) => {
-      const pressed = kbInfo.type === KeyboardEventTypes.KEYDOWN;
-      switch (kbInfo.event.code) {
+    // Use global window events so UI focus doesn't break movement
+    const handleKey = (e: KeyboardEvent, pressed: boolean) => {
+      // Don't capture inputs if user is typing in an input field (like the wager box)
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      switch (e.code) {
         case 'KeyW': case 'ArrowUp':    this.input.forward  = pressed; break;
         case 'KeyS': case 'ArrowDown':  this.input.backward = pressed; break;
         case 'KeyA': case 'ArrowLeft':  this.input.left     = pressed; break;
@@ -111,8 +161,15 @@ export class Player {
           if (pressed) this.tryDodge();
           break;
       }
-    });
+    };
 
+    this.keyDownHandler = (e: KeyboardEvent) => handleKey(e, true);
+    this.keyUpHandler = (e: KeyboardEvent) => handleKey(e, false);
+
+    window.addEventListener('keydown', this.keyDownHandler);
+    window.addEventListener('keyup', this.keyUpHandler);
+
+    // Keep pointer events on the canvas
     scene.onPointerObservable.add((pInfo) => {
       if (pInfo.type === PointerEventTypes.POINTERDOWN) {
         if (pInfo.event.button === 0) this.tryLightAttack();
@@ -188,6 +245,8 @@ export class Player {
   get position(): Vector3 { return this.mesh.position; }
 
   dispose(): void {
+    if (this.keyDownHandler) window.removeEventListener('keydown', this.keyDownHandler);
+    if (this.keyUpHandler) window.removeEventListener('keyup', this.keyUpHandler);
     this.camera.detachControl();
     this.camera.dispose();
     this.mesh.dispose();

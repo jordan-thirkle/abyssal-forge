@@ -91,6 +91,42 @@ export const useInventoryStore = create<InventoryState>((set, get) => ({
         }
       });
 
+      if (allItems.length === 0) {
+        // Starter items for new players
+        const starterSword: Item = {
+          id: `item_${Math.random().toString(36).slice(2)}`,
+          templateId: 'starter_sword',
+          name: 'Rusty Initiate Sword',
+          type: 'sword',
+          slot: 'weapon',
+          rarity: 'common',
+          level: 1,
+          stats: [{ stat: 'attack', value: 5, isPercentage: false }],
+          runeSlots: 0,
+          socketedRunes: [],
+          isTradeable: false,
+          ownerId: profile.id,
+          acquiredAt: new Date().toISOString()
+        };
+        items.push(starterSword);
+        
+        // Sync to Supabase if available
+        if (supabase) {
+          supabase.from('inventory_items').insert({
+            id: starterSword.id,
+            template_id: starterSword.templateId,
+            name: starterSword.name,
+            item_type: starterSword.type,
+            slot: starterSword.slot,
+            rarity: starterSword.rarity,
+            required_level: starterSword.level,
+            stats: starterSword.stats,
+            is_tradeable: starterSword.isTradeable,
+            owner_id: starterSword.ownerId
+          }).then();
+        }
+      }
+
       set({ items, equipped });
 
     } catch (e) {

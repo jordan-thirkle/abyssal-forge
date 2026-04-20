@@ -120,7 +120,9 @@ export class DungeonGenerator {
 
       // Walls
       const wallH = 6;
-      this.buildWalls(r, wallH, wallMat, i);
+      const prevRoom = i > 0 ? rooms[i-1] : null;
+      const nextRoom = i < rooms.length - 1 ? rooms[i+1] : null;
+      this.buildWalls(r, wallH, wallMat, i, prevRoom, nextRoom);
 
       // Corridors to next room
       if (i < rooms.length - 1) {
@@ -134,46 +136,74 @@ export class DungeonGenerator {
     }
   }
 
-  private buildWalls(r: Room, h: number, mat: StandardMaterial, id: number): void {
+  private buildWalls(r: Room, h: number, mat: StandardMaterial, id: number, prevRoom: Room | null, nextRoom: Room | null): void {
     const doorSize = 7;
     
-    // Each wall side (North, South, East, West) built as 2 segments with a gap
+    // Determine which sides need doorways based on connections
+    let doorN = false, doorS = false, doorE = false, doorW = false;
+
+    const checkConnection = (conn: Room | null) => {
+      if (!conn) return;
+      const dx = conn.x - r.x;
+      const dz = conn.z - r.z;
+      if (Math.abs(dx) > Math.abs(dz)) {
+        if (dx > 0) doorE = true;
+        else doorW = true;
+      } else {
+        if (dz > 0) doorS = true;
+        else doorN = true;
+      }
+    };
+
+    checkConnection(prevRoom);
+    checkConnection(nextRoom);
+
     const configs = [
       // North
-      { center: new Vector3(r.x, h/2, r.z - r.h/2), w: r.w, d: 0.8, isHorizontal: true },
+      { center: new Vector3(r.x, h/2, r.z - r.h/2), w: r.w, d: 0.8, isHorizontal: true, hasDoor: doorN },
       // South
-      { center: new Vector3(r.x, h/2, r.z + r.h/2), w: r.w, d: 0.8, isHorizontal: true },
+      { center: new Vector3(r.x, h/2, r.z + r.h/2), w: r.w, d: 0.8, isHorizontal: true, hasDoor: doorS },
       // West
-      { center: new Vector3(r.x - r.w/2, h/2, r.z), w: 0.8, d: r.h, isHorizontal: false },
+      { center: new Vector3(r.x - r.w/2, h/2, r.z), w: 0.8, d: r.h, isHorizontal: false, hasDoor: doorW },
       // East
-      { center: new Vector3(r.x + r.w/2, h/2, r.z), w: 0.8, d: r.h, isHorizontal: false },
+      { center: new Vector3(r.x + r.w/2, h/2, r.z), w: 0.8, d: r.h, isHorizontal: false, hasDoor: doorE },
     ];
 
     configs.forEach((cfg, ci) => {
-      if (cfg.isHorizontal) {
-        const segW = (cfg.w - doorSize) / 2;
-        const left = MeshBuilder.CreateBox(`w_${id}_${ci}_l`, { width: segW, height: h, depth: cfg.d }, this.scene);
-        left.position.set(cfg.center.x - segW/2 - doorSize/2, h/2, cfg.center.z);
-        left.material = mat;
-        left.checkCollisions = true;
-        
-        const right = MeshBuilder.CreateBox(`w_${id}_${ci}_r`, { width: segW, height: h, depth: cfg.d }, this.scene);
-        right.position.set(cfg.center.x + segW/2 + doorSize/2, h/2, cfg.center.z);
-        right.material = mat;
-        right.checkCollisions = true;
-        this.meshes.push(left, right);
-      } else {
-        const segD = (cfg.d - doorSize) / 2;
-        const top = MeshBuilder.CreateBox(`w_${id}_${ci}_t`, { width: cfg.w, height: h, depth: segD }, this.scene);
-        top.position.set(cfg.center.x, h/2, cfg.center.z - segD/2 - doorSize/2);
-        top.material = mat;
-        top.checkCollisions = true;
+      if (cfg.hasDoor) {
+        // Build 2 segments with a gap
+        if (cfg.isHorizontal) {
+          const segW = (cfg.w - doorSize) / 2;
+          const left = MeshBuilder.CreateBox(`w_${id}_${ci}_l`, { width: segW, height: h, depth: cfg.d }, this.scene);
+          left.position.set(cfg.center.x - segW/2 - doorSize/2, h/2, cfg.center.z);
+          left.material = mat;
+          left.checkCollisions = true;
+          
+          const right = MeshBuilder.CreateBox(`w_${id}_${ci}_r`, { width: segW, height: h, depth: cfg.d }, this.scene);
+          right.position.set(cfg.center.x + segW/2 + doorSize/2, h/2, cfg.center.z);
+          right.material = mat;
+          right.checkCollisions = true;
+          this.meshes.push(left, right);
+        } else {
+          const segD = (cfg.d - doorSize) / 2;
+          const top = MeshBuilder.CreateBox(`w_${id}_${ci}_t`, { width: cfg.w, height: h, depth: segD }, this.scene);
+          top.position.set(cfg.center.x, h/2, cfg.center.z - segD/2 - doorSize/2);
+          top.material = mat;
+          top.checkCollisions = true;
 
-        const bot = MeshBuilder.CreateBox(`w_${id}_${ci}_b`, { width: cfg.w, height: h, depth: segD }, this.scene);
-        bot.position.set(cfg.center.x, h/2, cfg.center.z + segD/2 + doorSize/2);
-        bot.material = mat;
-        bot.checkCollisions = true;
-        this.meshes.push(top, bot);
+          const bot = MeshBuilder.CreateBox(`w_${id}_${ci}_b`, { width: cfg.w, height: h, depth: segD }, this.scene);
+          bot.position.set(cfg.center.x, h/2, cfg.center.z + segD/2 + doorSize/2);
+          bot.material = mat;
+          bot.checkCollisions = true;
+          this.meshes.push(top, bot);
+        }
+      } else {
+        // Build a solid wall
+        const solid = MeshBuilder.CreateBox(`w_${id}_${ci}_solid`, { width: cfg.w, height: h, depth: cfg.d }, this.scene);
+        solid.position = cfg.center;
+        solid.material = mat;
+        solid.checkCollisions = true;
+        this.meshes.push(solid);
       }
     });
   }

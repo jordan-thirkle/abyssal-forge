@@ -9,6 +9,7 @@ import { AnimatePresence } from 'framer-motion';
 import { GameEngine } from '../game/GameEngine';
 import { DungeonScene } from '../game/scenes/DungeonScene';
 import { ArenaScene } from '../game/scenes/ArenaScene';
+import { HubScene } from '../game/scenes/HubScene';
 import { useGameStore } from '../store/gameStore';
 import { usePlayerStore } from '../store/playerStore';
 import { generateGuestName } from '@shared/types/player.types';
@@ -43,6 +44,8 @@ export default function App() {
           activeScene = new DungeonScene(engine, { tier: 1 });
         } else if (currentScene === 'arena') {
           activeScene = new ArenaScene(engine);
+        } else if (currentScene === 'hub') {
+          activeScene = new HubScene(engine);
         }
 
         // 2. Build and start new scene
